@@ -1,12 +1,14 @@
+image: repo.dev.terastrm.net:5000/ci-cisco-nso:4.2.3
+
 stages:
   - build
 
 build:
-  image: repo.dev.terastrm.net:5000/ci-cisco-nso:4.2.3
+  stage: build
   tags:
     - docker-metal
   only:
-    - master@TeraStream/cisco-nso
+    - master@TeraStream/ddos-gen
   script:
     - export DOCKER_REGISTRY=gitlab.dev.terastrm.net:4567/terastream
     - make docker-image

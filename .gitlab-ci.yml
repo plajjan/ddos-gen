@@ -1,0 +1,14 @@
+stages:
+  - build
+
+build:
+  image: repo.dev.terastrm.net:5000/ci-cisco-nso:4.2.3
+  tags:
+    - docker-metal
+  only:
+    - master@TeraStream/cisco-nso
+  script:
+    - export DOCKER_REGISTRY=gitlab.dev.terastrm.net:4567/terastream
+    - make docker-image
+    - docker login -u gitlab-ci-token -p ${CI_BUILD_TOKEN} $CI_REGISTRY
+    - make docker-push

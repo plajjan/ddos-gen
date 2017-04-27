@@ -1,13 +1,15 @@
 FROM ubuntu
 
-RUN add-apt-repository ppa:appneta/ppa \
- && apt-get -qy update \
+RUN apt-get -qy update \
  && apt-get -qy install \
     iproute2 \
     tcpdump \
     tcpreplay \
     python-netaddr \
-    python-scapy 
+    python-scapy \
+	software-properties-common \
+ && add-apt-repository ppa:appneta/ppa \
+ && apt-get -qy update
 
 RUN mkdir /usr/lib/python2.7/dist-packages/scapy/contrib \
  && touch /usr/lib/python2.7/dist-packages/scapy/contrib/__init__.py \

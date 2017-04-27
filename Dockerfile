@@ -6,6 +6,7 @@ RUN apt-get -qy update \
  && apt-get -qy update \
  && apt-get -qy install \
     iproute2 \
+    iputils-ping \
     tcpdump \
     python-netaddr \
     python-scapy \

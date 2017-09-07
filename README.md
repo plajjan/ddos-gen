@@ -5,8 +5,34 @@ exercise the control plane protection features of a router.
 
 
 The tool allows to create untagged, single-tagged and double-tagged non-stateful packets to target the DUT.
-Various packet-patterns do exist, like bgp, bfd, icmp_request, Router-Advertisements,...
 
+# actually supported traffic patterns
+
+```
+lab@ubuntu1:~/cg-ubuntu1/ddos$ ./ddos-gen.py -h | grep pattern
+```
+
+* [-pattern_bfd]
+* [-pattern_icmp_request]
+* [-pattern_bgp]
+* [-pattern_dhcp_solicit]
+* [-pattern_ra]
+* [-pattern_stp_conf]
+* [-pattern_stp_tcn]
+* [-pattern_lacp]
+* [-pattern_snmp]
+
+                   
+
+# two parameters of success
+The tool is having predefined/default values for the IPv6 destination IP and dest MAC.
+To target a device, a user shall manually define both values to match the DUT.
+The knobs -dmac (destination mac) and -dip (destination ip) are shown in below example
+
+```
+# example for enabling all traffic patterns
+sudo ./ddos-gen.py --all  -subs 1 -sps 1   -RA_prefix 2a00:c37:428:22ff:: -RA_prefix_len 64 -llc fe80::2200:ff:fe00:1 -smac a0:36:9f:58:41:7a -dmac 4c:96:14:e5:b6:01 -dip 2003:1a39:47:2::2  -sip 2003:1a39:47:2::100 -vid 2000 --wire p9p3
+```
 
 ## usage
 A brief overview is provided by the '-h' knob
@@ -14,13 +40,16 @@ A brief overview is provided by the '-h' knob
 ./ddos-gen.py -h
 ```
 
+
+## knob subscribers versus sources-per-subscriber
+
 While most parameters are self-explaining, the '-subs' (Amount of subscribers) and the 'sps' (sources per subscriber) knob need some explanation.
 
 * To a subscriber there is always a subnet assigned, the start-point is '-sip'.
 * If there are multiple subscribers configured, then all use an incremented subnet-range. The increment between the subnets can be influenced by the --offset knob.
 * for each given subnet/subscriber we may have multiple src-addresses to launch for DDOS. This is defined via the '-sps' knob
 
-### example 'subs' / 'sps'
+### example knobs '-subs' / '-sps'
 
 lets assume 3 subscribers with each 2 sources. protocol shall be bgp.
 
@@ -37,6 +66,41 @@ listening on p9p3, link-type EN10MB (Ethernet), capture size 262144 bytes
 10:32:22.027186 IP6 2003::2000:1.1026 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
 10:32:22.095452 IP6 2003::2000:2.1026 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
 ```
+
+### the used src-address in relevance to '-subs' / 'sps'
+The used src-mac address can be either static configured or randomly choosen.
+
+Default is random in the below fashion, but can be user-defined via the knob '-smac':
+
+```
+lab@ubuntu1:~/cg-ubuntu1/ddos$ ./ddos-gen.py -subs 3 -pattern_bgp -pattern_stp -sps 2 -smac 11:22:33:44:55:66
+```
+
+Running the tool with BGP and STP pattern. 3 subscribers and per subscriber 2 sources active.
+makes in total 12 packets 
+
+Please notice how the src-mac is getting randomly modified with each source-per-subscriber below.
+
+```
+12 = (3*2*(BGP+STP)=3*2*2
+lab@ubuntu1:~/cg-ubuntu1/ddos$ ./ddos-gen.py -subs 3 -pattern_bgp -pattern_stp -sps 2
+
+lab@ubuntu1:~/cg-ubuntu1/ddos$ tcpdump -ne -r ddos.pcap
+reading from file ddos.pcap, link-type EN10MB (Ethernet)
+12:07:43.320222 1c:11:40:b8:de:69 > 22:22:22:22:22:22, ethertype IPv6 (0x86dd), length 84: 2003:1c08:20:ff::1.1024 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
+12:07:43.322237 1c:11:40:b8:de:69 > 01:80:c2:00:00:00, 802.3, length 38: LLC, dsap STP (0x42) Individual, ssap STP (0x42) Command, ctrl 0x03: STP 802.1d, Config, Flags [Topology change], bridge-id 1194.1c:11:40:b8:de:69.8002, length 35
+12:07:43.324093 e7:c9:6c:e6:e5:91 > 22:22:22:22:22:22, ethertype IPv6 (0x86dd), length 84: 2003:1c08:20:ff::2.1024 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
+12:07:43.325792 e7:c9:6c:e6:e5:91 > 01:80:c2:00:00:00, 802.3, length 38: LLC, dsap STP (0x42) Individual, ssap STP (0x42) Command, ctrl 0x03: STP 802.1d, Config, Flags [Topology change], bridge-id 25f6.e7:c9:6c:e6:e5:91.8002, length 35
+12:07:43.327589 38:c5:41:7e:da:c9 > 22:22:22:22:22:22, ethertype IPv6 (0x86dd), length 84: 2003:1c08:20:ff::1.1025 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
+12:07:43.329189 38:c5:41:7e:da:c9 > 01:80:c2:00:00:00, 802.3, length 38: LLC, dsap STP (0x42) Individual, ssap STP (0x42) Command, ctrl 0x03: STP 802.1d, Config, Flags [Topology change], bridge-id 98d8.38:c5:41:7e:da:c9.8002, length 35
+12:07:43.330965 e3:d7:42:1f:01:f4 > 22:22:22:22:22:22, ethertype IPv6 (0x86dd), length 84: 2003:1c08:20:ff::2.1025 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
+12:07:43.332698 e3:d7:42:1f:01:f4 > 01:80:c2:00:00:00, 802.3, length 38: LLC, dsap STP (0x42) Individual, ssap STP (0x42) Command, ctrl 0x03: STP 802.1d, Config, Flags [Topology change], bridge-id cfd2.e3:d7:42:1f:01:f4.8002, length 35
+12:07:43.334457 d7:a2:8d:3f:7a:9d > 22:22:22:22:22:22, ethertype IPv6 (0x86dd), length 84: 2003:1c08:20:ff::1.1026 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
+12:07:43.336015 d7:a2:8d:3f:7a:9d > 01:80:c2:00:00:00, 802.3, length 38: LLC, dsap STP (0x42) Individual, ssap STP (0x42) Command, ctrl 0x03: STP 802.1d, Config, Flags [Topology change], bridge-id f2b9.d7:a2:8d:3f:7a:9d.8002, length 35
+12:07:43.337785 df:d2:26:92:91:5d > 22:22:22:22:22:22, ethertype IPv6 (0x86dd), length 84: 2003:1c08:20:ff::2.1026 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
+12:07:43.339214 df:d2:26:92:91:5d > 01:80:c2:00:00:00, 802.3, length 38: LLC, dsap STP (0x42) Individual, ssap STP (0x42) Command, ctrl 0x03: STP 802.1d, Config, Flags [Topology change], bridge-id 31d6.df:d2:26:92:91:5d.8002, length 35
+```
+
 
 ### vlan-tagging and the relevance to '-subs' / 'sps'
 
@@ -116,6 +180,65 @@ tcpdump: listening on p9p3, link-type EN10MB (Ethernet), capture size 262144 byt
 	    0x0010:  0c37 0428 22ff 0000 0000 0000 0000
 ```
 	
+###snmpget
+The tools allows to generate snmpqueries via a user-configurable OID. Default is "1.3.6.1"
+Default value for the community is public, but can be overwritten.
+
+```
+lab@ubuntu1:~/cg-ubuntu1/ddos$ ./ddos-gen.py --pattern_snmp -oid 1.3.6.1.2 -snmp_community test
+
+lab@ubuntu1:~/cg-ubuntu1/ddos$ tcpdump -ne -c 2 -r ddos.pcap -vvv
+reading from file ddos.pcap, link-type EN10MB (Ethernet)
+16:31:53.219300 d1:23:5b:0e:b5:71 > 22:22:22:22:22:22, ethertype IPv6 (0x86dd), length 96: (hlim 64, next-header UDP (17) payload length: 42) 2003:1c08:20:ff::1.1024 > 2001:db8:100::1.161: [udp sum ok]  { SNMPv2c C="test" { GetRequest(21) R=0  .1.3.6.1.2 } }
+
+```
+
+### spanning tree
+For STP 2 options do exist.
+
+* The 'stp_tcn' is just a topology-change notification (packet=Dot3(dst=bpdu_mac, src=src_mac)/LLC()/STP(bpdutype=0x80))
+* The stp_conf fires up configuration BPDU's, with random root_priority and random bridge_priority (packet=Dot3(dst=bpdu_mac, src=src_mac)/LLC()/STP(bpdutype=0x00, bpduflags=0x01, portid=0x8002, rootmac=src_mac,bridgemac=src_mac, rootid=root_priority, bridgeid=bridge_priority))
+
+
+```
+lab@ubuntu1:~/cg-ubuntu1/ddos$ ./ddos-gen.py --pattern_stp_tcn
+lab@ubuntu1:~/cg-ubuntu1/ddos$ tcpdump -ne -c 2 -r ddos.pcap -vvv
+reading from file ddos.pcap, link-type EN10MB (Ethernet)
+16:33:49.802864 f3:0f:59:f4:95:3f > 01:80:c2:00:00:00, 802.3, length 38: LLC, dsap STP (0x42) Individual, ssap STP (0x42) Command, ctrl 0x03: STP 802.1d, Topology Change
+
+lab@ubuntu1:~/cg-ubuntu1/ddos$ ./ddos-gen.py --pattern_stp_conf
+lab@ubuntu1:~/cg-ubuntu1/ddos$ tcpdump -ne -c 2 -r ddos.pcap -vvv
+reading from file ddos.pcap, link-type EN10MB (Ethernet)
+16:34:32.975872 47:42:96:ac:17:bf > 01:80:c2:00:00:00, 802.3, length 38: LLC, dsap STP (0x42) Individual, ssap STP (0x42) Command, ctrl 0x03: STP 802.1d, Config, Flags [Topology change], bridge-id 44a0.47:42:96:ac:17:bf.8002, length 35
+	message-age 1.00s, max-age 20.00s, hello-time 2.00s, forwarding-delay 15.00s
+	root-id f623.47:42:96:ac:17:bf, root-pathcost 0
+```
+
+### LACP
+Scapy does not natively support SNMP. The tool is reading a LACP-packet taken from a EX4300 series switch (provided via pcap "only_lacp.pcap") and overwrites src_mac and dst_mac of the to be generated LACP-frames.
+
+```
+lab@ubuntu1:~/cg-ubuntu1/ddos$ ./ddos-gen.py --pattern_lacp -dmac 22:22:22:00:00:00
+
+lab@ubuntu1:~/cg-ubuntu1/ddos$ tcpdump -ne -c 2 -r ddos.pcap -vvv
+reading from file ddos.pcap, link-type EN10MB (Ethernet)
+16:42:50.313046 8b:42:f6:f3:28:fc > 22:22:22:00:00:00, ethertype Slow Protocols (0x8809), length 124: LACPv1, length 110
+	Actor Information TLV (0x01), length 20
+	  System 4c:96:14:e5:b6:00, System Priority 127, Key 1, Port 1, Port Priority 127
+	  State Flags [Activity, Timeout, Aggregation, Default, Expired]
+	  0x0000:  007f 4c96 14e5 b600 0001 007f 0001 c700
+	  0x0010:  0000
+	Partner Information TLV (0x02), length 20
+	  System 00:00:00:00:00:00, System Priority 1, Key 1, Port 1, Port Priority 1
+	  State Flags [Timeout, Aggregation, Default]
+	  0x0000:  0001 0000 0000 0000 0001 0001 0001 4600
+	  0x0010:  0000
+	Collector Information TLV (0x03), length 16
+	  Max Delay 0
+	  0x0000:  0000 0000 0000 0000 0000 0000 0000
+	Terminator TLV (0x00), length 0
+
+```
 
 
 ### wire or pcap

@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+# version_2017_09_25
+
 ############################
 # Author: christian graf   #
 # cgraf@juniper.net        #
@@ -15,11 +17,13 @@
 # 2) copy it here: ./usr/local/lib/python2.7/dist-packages/scapy/contrib/bgp.py
 
 '''
-changes
+changes 
 2017_09_07  - adding random src-mac
 2017_09_07  - adding spanning-tree conf and tcn attack
 2017_09_07  - added lacp. note lacp=trace required
 2017_09_07  - added snmpget
+2017_09_25  - correcting random_src mac
+2017_09_25  - added wire (replay) capability
 
 '''
 
@@ -69,7 +73,7 @@ type       : XShortEnumField           = (36864)
 ###########
 # generate Router-advertisements for VID 2000
 #./ddos-gen.py --RA --subs 1 -vid 2000
-#
+# 
 
 '''
 
@@ -82,7 +86,7 @@ So make sure whenever using this tool to have at least both the dmac and src-mac
 sudo ./ddos-gen.py --all  -subs 1 -sps 1  --wire p9p3 -RA_prefix 2a00:c37:428:22ff:: -RA_prefix_len 64 -llc fe80::2200:ff:fe00:1 -smac 23:22:22:22:22:22 -dmac 4c:96:14:e5:b6:21 -dip 2003:1a39:47:2::2 -vid 2000 -sip 2003:1a39:47:2::100
 
 
-HOWTO REPLAY
+HOWTO REPLAY 
 ============
 use the tcpreplay tool. use either with pps to define pps or -t to run with topspeed
 sudo tcpreplay --preload-pcap -i p9p3 -l 1000 --pps 15000  ddos.pcap
@@ -312,13 +316,13 @@ print "--------------------------------------"
 if args.offset <> 0:
   print "using distributed traffic pattern, based on offset given"
 else:
-  print "all generated traffic using static/single src-ip"
+  print "all generated traffic using static/single src-ip" 
 print "."
 print "."
 print "."
 print "starting populating the pcap-file"
 print "================================="
-
+ 
 ## traffic generation
 ## this is the outer-loop, defined by the number of total subscribers
 packet_count=0
@@ -327,15 +331,15 @@ for x in range(0,args.subs):
 
    # Variables
    ###########
-
+   
    # mac addresses
    # multicast mac destination required for e.g. dhcpv6 solicit
-   multicast_MAC     = '33:33:00:01:00:02'
+   multicast_MAC     = '33:33:00:01:00:02'  
    ra_dst_mac        = '33:33:00:00:00:01'
    bpdu_mac          = "01:80:c2:00:00:00"
    pause_mac         = "01:80:c2:00:00:01"
    lag_mac           = "01:80:c2:00:00:02"
-
+ 
    # ip setting
    # modifier and variance is defined here
    dhcp_dst_IPv6    = "ff02::1:2"
@@ -350,21 +354,21 @@ for x in range(0,args.subs):
    bfd_control       = 3784
    bfd_echo          = 3785
    bfd_srcport       = random.randint(49152,65535)
-
+   
    # this is the inner loop, reiterating through the sources_per_subscriber
    for y in range (0,args.sources_per_subscriber):
            # incrementing the advertised RA-prefix with /64 per each src_per-subscriber run
            ra_pio_add=y*int(ra_pio_increment)
            ra_pio=IPAddress(args.RA_prefix)
-           ra_pio= ra_pio + ra_pio_add
-
+           ra_pio= ra_pio + ra_pio_add	
+	   
            # l3 src address gets incremented with each outer and inner loop
 	   ip_increment= x * int(offset,16) + y
 	   src_ip=IPAddress(args.sip)
 	   src_ip = src_ip + ip_increment
 	   l3=IPv6(src=str(src_ip),dst=args.dip)
 	   l3_ra=IPv6(src=args.link_local_src,dst=ra_dst_IPv6)
-
+           
 	   # l2 header
 	   ## check if packets shall be untagged, single-tagged or double-tagged
 	   ## with each subscriber (args.subs) the vlan-id is incremented
@@ -375,7 +379,13 @@ for x in range(0,args.subs):
               src_mac   = str(RandMAC())
               print "new mac choosen ", src_mac
            else:
-               src_mac   = args.smac
+               # make sure the static mac is only incremented with each subscriber and not with each source per subscriber
+               # first create integer out of the mac-address
+               mac   = EUI(args.smac) # EUI('22-22-33-33-44-45')
+               int_mac = int(mac) +x  # now an integer: 37530283230278
+	       src_mac_eui   = EUI(int_mac) # again EUi format: EUI('22-22-33-33-44-46')
+               src_mac_eui.dialect = mac_unix_expanded # EUI('22:22:33:33:44:46')
+               src_mac=str(src_mac_eui)
 
 	   if args.vid <> 'False':
 	       # packets are either tagged or double-tagged
@@ -460,7 +470,7 @@ for x in range(0,args.subs):
 	       pktdump.write(packet)
                if (args.wire!='null'):
 	          sendp(packet,iface=args.wire)
-	       # bfd_multihup
+	       # bfd_multihup 
 	       packet=l2/l3/UDP(sport=bfd_srcport, dport=bfd_multihop)
 	       packet_count += 1
 	       pktdump.write(packet)
@@ -477,26 +487,26 @@ for x in range(0,args.subs):
                if x == 0:
                    print "starting: Router-Advertisements"
                packet=l2_ra/l3_ra/ICMPv6ND_RA(O=1,prf=3,routerlifetime=30)/ICMPv6NDOptSrcLLAddr(lladdr=src_mac)/ICMPv6NDOptMTU(mtu=1420)/ICMPv6NDOptPrefixInfo(prefixlen=args.RA_prefix_len,prefix=str(ra_pio))
-               #packet.display()
+               #packet.display() 
                packet_count += 1
                pktdump.write(packet)
                if (args.wire!='null'):
 	          sendp(packet,iface=args.wire)
                #packet.show()
-
+                   
            # spanning-tree conf
            if args.pattern_stp_conf == True:
                if x == 0:
                    print "starting: spanning tree conf"
                root_priority = RandInt() % 65536
 	       bridge_priority = RandInt() % 65536
-	       packet=Dot3(dst=bpdu_mac, src=src_mac)/LLC()/STP(bpdutype=0x00, bpduflags=0x01, portid=0x8002, rootmac=src_mac,bridgemac=src_mac, rootid=root_priority, bridgeid=bridge_priority)
+	       packet=Dot3(dst=bpdu_mac, src=src_mac)/LLC()/STP(bpdutype=0x00, bpduflags=0x01, portid=0x8002, rootmac=src_mac,bridgemac=src_mac, rootid=root_priority, bridgeid=bridge_priority) 
                packet_count += 1
                pktdump.write(packet)
                if (args.wire!='null'):
 	          sendp(packet,iface=args.wire)
 
-           # spanning-tree tcn
+           # spanning-tree tcn 
            if args.pattern_stp_tcn == True:
                if x == 0:
                    print "starting: spanning tree tcn"
@@ -507,7 +517,7 @@ for x in range(0,args.subs):
                pktdump.write(packet)
                if (args.wire!='null'):
 	          sendp(packet,iface=args.wire)
-
+           
            # lacp
            if args.pattern_lacp == True:
                if x == 0:
@@ -519,7 +529,7 @@ for x in range(0,args.subs):
                pktdump.write(packet)
                if (args.wire!='null'):
 	          sendp(packet,iface=args.wire)
-
+   
 	   # snmp
            if args.pattern_snmp == True:
 	       if x == 0:
@@ -542,9 +552,12 @@ print "done"
 # #vty
 # show ddos scfd asic-flows
 # show ddos scfd asic-flow-rindex 0 2679
-# show ddos policer bgp stats
-# show ddos policer bgp configuration
+# show ddos policer bgp stats 
+# show ddos policer bgp configuration  
 # show ddos scfd asic-flows
 # show ddos scfd global-info
-# show ddos scfd asic-flows
+# show ddos scfd asic-flows  
 # show ddos scfd asic-flow-rindex 0 1439
+
+
+

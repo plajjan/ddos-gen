@@ -241,10 +241,86 @@ reading from file ddos.pcap, link-type EN10MB (Ethernet)
 ```
 
 
+### stressing a switch/router with many new src-macs
+Not all networking-devices support mac-learn in hw. Even if done in hw, learning new macs puts a massive stress on the dataplane.
+Per default the tool is generating a random src-mac with each frame generated. 
+A fixed src-mac can be configured as well.
+
+e.g. to generate 10 snmp-packets in vlan-id 10 with each a random smac:
+```
+lab@ubuntu1:~/cg-ubuntu1/ddos$ sudo ./ddos-gen.py -pattern_snmp -subs 1 -sps 3 -wire p9p3 -vid 10 -dmac 4c:96:14:e5:b6:12
+
+11:27:51.258747 22:11:f0:d3:a9:67 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 101: vlan 10, p 0, ethertype IPv6, 2003:1c08:20:ff::1.1024 > 2001:db8:100::1.161:  GetRequest(20)  .1.3.6.1
+11:27:51.286876 c4:07:85:63:74:e0 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 101: vlan 10, p 0, ethertype IPv6, 2003:1c08:20:ff::2.1024 > 2001:db8:100::1.161:  GetRequest(20)  .1.3.6.1
+11:27:51.314748 1f:fa:df:b9:4d:18 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 101: vlan 10, p 0, ethertype IPv6, 2003:1c08:20:ff::3.1024 > 2001:db8:100::1.161:  GetRequest(20)  .1.3.6.1
+```
+
+It shall be noted that in random smac-mode, not all packets use a new mac. Again the knob -subs and -sps come into play - please see explanation below.
+* 2 subscriber attachment-circuits (AC) are being configured (-subs 2)
+* while we define per AC 3 different sources. (-sps 3)
+
+2 subscribers mean we iterate through the vlans, starting with configured VID 10, ending with VID 11
+snmp and bgp shall be generated 
+- makes in total 12 frames (2protocols * 2subscriber * 3sources_per_subscriber = 12)
+- in total 6 unique smacs (2subscriber * 3sources_per_subscriber)
+
+```
+lab@ubuntu1:~/cg-ubuntu1/ddos$ sudo ./ddos-gen.py -pattern_snmp -pattern_bgp -subs 2 -sps 3 -wire p9p3 -vid 10 -dmac 4c:96:14:e5:b6:12
+
+11:44:24.454264 bb:83:69:99:33:3d > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 88: vlan 10, p 0, ethertype IPv6, 2003:1c08:20:ff::1.1024 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
+11:44:24.479331 bb:83:69:99:33:3d > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 101: vlan 10, p 0, ethertype IPv6, 2003:1c08:20:ff::1.1024 > 2001:db8:100::1.161:  GetRequest(20)  .1.3.6.1
+11:44:24.511068 9e:c3:eb:ef:49:51 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 88: vlan 10, p 0, ethertype IPv6, 2003:1c08:20:ff::2.1024 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
+11:44:24.540122 9e:c3:eb:ef:49:51 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 101: vlan 10, p 0, ethertype IPv6, 2003:1c08:20:ff::2.1024 > 2001:db8:100::1.161:  GetRequest(20)  .1.3.6.1
+11:44:24.564803 fc:a6:e8:6f:da:65 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 88: vlan 10, p 0, ethertype IPv6, 2003:1c08:20:ff::3.1024 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
+11:44:24.592137 fc:a6:e8:6f:da:65 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 101: vlan 10, p 0, ethertype IPv6, 2003:1c08:20:ff::3.1024 > 2001:db8:100::1.161:  GetRequest(20)  .1.3.6.1
+11:44:24.623198 e0:91:eb:c5:9d:e5 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 88: vlan 11, p 0, ethertype IPv6, 2003:1c08:20:ff::1.1025 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
+11:44:24.651891 e0:91:eb:c5:9d:e5 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 101: vlan 11, p 0, ethertype IPv6, 2003:1c08:20:ff::1.1025 > 2001:db8:100::1.161:  GetRequest(20)  .1.3.6.1
+11:44:24.683234 42:a9:3b:3f:bb:73 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 88: vlan 11, p 0, ethertype IPv6, 2003:1c08:20:ff::2.1025 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
+11:44:24.712515 42:a9:3b:3f:bb:73 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 101: vlan 11, p 0, ethertype IPv6, 2003:1c08:20:ff::2.1025 > 2001:db8:100::1.161:  GetRequest(20)  .1.3.6.1
+11:44:24.739256 bd:e4:d4:7a:4f:9f > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 88: vlan 11, p 0, ethertype IPv6, 2003:1c08:20:ff::3.1025 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
+11:44:24.772614 bd:e4:d4:7a:4f:9f > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 101: vlan 11, p 0, ethertype IPv6, 2003:1c08:20:ff::3.1025 > 2001:db8:100::1.161:  GetRequest(20)  .1.3.6.1
+
+```
+
+#### using static/predefined fixed smac
+Same pattern as abovem but with a static fixed source-address. Fixed mean, with euch subscriber we utilize a unique mac only, independant from amount of protocols or sources_per_subscriber knob (-sps)
+Fixed means, that on each subscriber AC there is just a fixed address for all packets coming from there.
+Each subscriber still gets a unique address. As we do have 2 subscribers, the tool generates just 2 macs in total.
+
+```
+lab@ubuntu1:~/cg-ubuntu1/ddos$ sudo ./ddos-gen-2017_09_21.py -pattern_snmp -pattern_bgp -subs 2 -sps 3 -wire p9p3 -vid 10 -dmac 4c:96:14:e5:b6:12 -smac 22:22:22:22:22:22
+
+lab@ubuntu1:~$ sudo tcpdump -n -i p9p3 -e
+tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+listening on p9p3, link-type EN10MB (Ethernet), capture size 262144 bytes
+13:05:53.622195 22:22:22:22:22:22 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 88: vlan 10, p 0, ethertype IPv6, 2003:1c08:20:ff::1.1024 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
+13:05:53.648189 22:22:22:22:22:22 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 101: vlan 10, p 0, ethertype IPv6, 2003:1c08:20:ff::1.1024 > 2001:db8:100::1.161:  GetRequest(20)  .1.3.6.1
+13:05:53.675227 22:22:22:22:22:22 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 88: vlan 10, p 0, ethertype IPv6, 2003:1c08:20:ff::2.1024 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
+13:05:53.712645 22:22:22:22:22:22 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 101: vlan 10, p 0, ethertype IPv6, 2003:1c08:20:ff::2.1024 > 2001:db8:100::1.161:  GetRequest(20)  .1.3.6.1
+13:05:53.752873 22:22:22:22:22:22 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 88: vlan 10, p 0, ethertype IPv6, 2003:1c08:20:ff::3.1024 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
+13:05:53.780473 22:22:22:22:22:22 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 101: vlan 10, p 0, ethertype IPv6, 2003:1c08:20:ff::3.1024 > 2001:db8:100::1.161:  GetRequest(20)  .1.3.6.1
+13:05:53.807245 22:22:22:22:22:23 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 88: vlan 11, p 0, ethertype IPv6, 2003:1c08:20:ff::1.1025 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
+13:05:53.844239 22:22:22:22:22:23 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 101: vlan 11, p 0, ethertype IPv6, 2003:1c08:20:ff::1.1025 > 2001:db8:100::1.161:  GetRequest(20)  .1.3.6.1
+13:05:53.879234 22:22:22:22:22:23 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 88: vlan 11, p 0, ethertype IPv6, 2003:1c08:20:ff::2.1025 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
+13:05:53.908461 22:22:22:22:22:23 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 101: vlan 11, p 0, ethertype IPv6, 2003:1c08:20:ff::2.1025 > 2001:db8:100::1.161:  GetRequest(20)  .1.3.6.1
+13:05:53.935112 22:22:22:22:22:23 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 88: vlan 11, p 0, ethertype IPv6, 2003:1c08:20:ff::3.1025 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
+13:05:53.964465 22:22:22:22:22:23 > 4c:96:14:e5:b6:12, ethertype 802.1Q (0x8100), length 101: vlan 11, p 0, ethertype IPv6, 2003:1c08:20:ff::3.1025 > 2001:db8:100::1.161:  GetRequest(20)  .1.3.6.1
+
+```
+
+
 ### wire or pcap
 
 the tool always generates a pcap-file which can then be fire-up via tcpreplay for example. The default name is "ddos.pcap", however can be user-defined by the "-pcap_file" knob.
 
 optional an interface can be given as seen in above example to send the packets directly to a named interface (e.g. /dev/p9p3)
+
+Please note, that the tool roughly generates just 30pps. if speed is required, please use tcpreplay to replay the generated frames at a decent speed.
+
+Below command e.g. replays the pcap at roughly 980kpps and loops 10.000 times through the same pcap
+
+```
+sudo tcpreplay --preload-pcap -tK -l 10000 -i p9p3 ddos-1m-smac.pcap
+```
 
 

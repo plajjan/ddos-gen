@@ -282,8 +282,8 @@ lab@ubuntu1:~/cg-ubuntu1/ddos$ sudo ./ddos-gen.py -pattern_snmp -pattern_bgp -su
 
 ```
 
-#### looking as a fixed smac
-Same pattern with a static fixed source-address. Fixed mean, with euch subscriber we utilize a unique mac only, independant from amount of protocols or sources_per_subscriber knob (-sps)
+#### using static/predefined fixed smac
+Same pattern as above but with a static fixed source-address. Fixed means, with each subscriber we utilize a unique mac only, independant from amount of protocols or sources_per_subscriber knob (-sps)
 Fixed means, that on each subscriber AC there is just a fixed address for all packets coming from there.
 Each subscriber still gets a unique address. As we do have 2 subscribers, the tool generates just 2 macs in total.
 

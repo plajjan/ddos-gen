@@ -383,7 +383,7 @@ for x in range(0,args.subs):
                # first create integer out of the mac-address
                mac   = EUI(args.smac) # EUI('22-22-33-33-44-45')
                int_mac = int(mac) +x  # now an integer: 37530283230278
-	       src_mac_eui   = EUI(int_mac) # again EUi format: EUI('22-22-33-33-44-46')
+               src_mac_eui   = EUI(int_mac) # again EUi format: EUI('22-22-33-33-44-46')
                src_mac_eui.dialect = mac_unix_expanded # EUI('22:22:33:33:44:46')
                src_mac=str(src_mac_eui)
 

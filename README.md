@@ -43,9 +43,10 @@ A brief overview is provided by the '-h' knob
 
 ## knob subscribers versus sources-per-subscriber
 
-While most parameters are self-explaining, the '-subs' (Amount of subscribers) and the 'sps' (sources per subscriber) knob need some explanation.
+While most parameters are self-explaining, the '-subs' (Amount of subscribers) and the 'sps' (sources per subscriber) knob need some explanation. Both influence heavily the src-mac, src-Ip and VID of the generated packets.
 
-* To a subscriber there is always a subnet assigned, the start-point is '-sip'.
+
+* A subscriber is always mapped to a unique subnet, the start-point is provided via the knob '-sip'.
 * If there are multiple subscribers configured, then all use an incremented subnet-range. The increment between the subnets can be influenced by the --offset knob.
 * for each given subnet/subscriber we may have multiple src-addresses to launch for DDOS. This is defined via the '-sps' knob
 
@@ -67,39 +68,9 @@ listening on p9p3, link-type EN10MB (Ethernet), capture size 262144 bytes
 10:32:22.095452 IP6 2003::2000:2.1026 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
 ```
 
-### the used src-address in relevance to '-subs' / 'sps'
-The used src-mac address can be either static configured or randomly choosen.
 
-Default is random in the below fashion, but can be user-defined via the knob '-smac':
+For more details on the src-mac, please look at below chapters starting here: <a href="#src-mac">stressing a switch/router with many new src-macs</a>
 
-```
-lab@ubuntu1:~/cg-ubuntu1/ddos$ ./ddos-gen.py -subs 3 -pattern_bgp -pattern_stp -sps 2 -smac 11:22:33:44:55:66
-```
-
-Running the tool with BGP and STP pattern. 3 subscribers and per subscriber 2 sources active.
-makes in total 12 packets 
-
-Please notice how the src-mac is getting randomly modified with each source-per-subscriber below.
-
-```
-12 = (3*2*(BGP+STP)=3*2*2
-lab@ubuntu1:~/cg-ubuntu1/ddos$ ./ddos-gen.py -subs 3 -pattern_bgp -pattern_stp -sps 2
-
-lab@ubuntu1:~/cg-ubuntu1/ddos$ tcpdump -ne -r ddos.pcap
-reading from file ddos.pcap, link-type EN10MB (Ethernet)
-12:07:43.320222 1c:11:40:b8:de:69 > 22:22:22:22:22:22, ethertype IPv6 (0x86dd), length 84: 2003:1c08:20:ff::1.1024 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
-12:07:43.322237 1c:11:40:b8:de:69 > 01:80:c2:00:00:00, 802.3, length 38: LLC, dsap STP (0x42) Individual, ssap STP (0x42) Command, ctrl 0x03: STP 802.1d, Config, Flags [Topology change], bridge-id 1194.1c:11:40:b8:de:69.8002, length 35
-12:07:43.324093 e7:c9:6c:e6:e5:91 > 22:22:22:22:22:22, ethertype IPv6 (0x86dd), length 84: 2003:1c08:20:ff::2.1024 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
-12:07:43.325792 e7:c9:6c:e6:e5:91 > 01:80:c2:00:00:00, 802.3, length 38: LLC, dsap STP (0x42) Individual, ssap STP (0x42) Command, ctrl 0x03: STP 802.1d, Config, Flags [Topology change], bridge-id 25f6.e7:c9:6c:e6:e5:91.8002, length 35
-12:07:43.327589 38:c5:41:7e:da:c9 > 22:22:22:22:22:22, ethertype IPv6 (0x86dd), length 84: 2003:1c08:20:ff::1.1025 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
-12:07:43.329189 38:c5:41:7e:da:c9 > 01:80:c2:00:00:00, 802.3, length 38: LLC, dsap STP (0x42) Individual, ssap STP (0x42) Command, ctrl 0x03: STP 802.1d, Config, Flags [Topology change], bridge-id 98d8.38:c5:41:7e:da:c9.8002, length 35
-12:07:43.330965 e3:d7:42:1f:01:f4 > 22:22:22:22:22:22, ethertype IPv6 (0x86dd), length 84: 2003:1c08:20:ff::2.1025 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
-12:07:43.332698 e3:d7:42:1f:01:f4 > 01:80:c2:00:00:00, 802.3, length 38: LLC, dsap STP (0x42) Individual, ssap STP (0x42) Command, ctrl 0x03: STP 802.1d, Config, Flags [Topology change], bridge-id cfd2.e3:d7:42:1f:01:f4.8002, length 35
-12:07:43.334457 d7:a2:8d:3f:7a:9d > 22:22:22:22:22:22, ethertype IPv6 (0x86dd), length 84: 2003:1c08:20:ff::1.1026 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
-12:07:43.336015 d7:a2:8d:3f:7a:9d > 01:80:c2:00:00:00, 802.3, length 38: LLC, dsap STP (0x42) Individual, ssap STP (0x42) Command, ctrl 0x03: STP 802.1d, Config, Flags [Topology change], bridge-id f2b9.d7:a2:8d:3f:7a:9d.8002, length 35
-12:07:43.337785 df:d2:26:92:91:5d > 22:22:22:22:22:22, ethertype IPv6 (0x86dd), length 84: 2003:1c08:20:ff::2.1026 > 2001:db8:100::1.179: Flags [S], seq 0:10, win 8192, length 10: BGP
-12:07:43.339214 df:d2:26:92:91:5d > 01:80:c2:00:00:00, 802.3, length 38: LLC, dsap STP (0x42) Individual, ssap STP (0x42) Command, ctrl 0x03: STP 802.1d, Config, Flags [Topology change], bridge-id 31d6.df:d2:26:92:91:5d.8002, length 35
-```
 
 
 ### vlan-tagging and the relevance to '-subs' / 'sps'
@@ -133,7 +104,7 @@ listening on p9p3, link-type EN10MB (Ethernet), capture size 262144 bytes
 10:51:06.549633 a0:36:9f:58:41:7a > 01:80:c2:00:00:00, 802.3, length 38: LLC, dsap STP (0x42) Individual, ssap STP (0x42) Command, ctrl 0x03: STP 802.1d, Config, Flags [none], bridge-id 8000.a0:36:9f:58:41:7a.8002, length 35
 ``` 
 
-## doube-tagged frames and an example for dot1q priority setting
+## double-tagged frames and an example for dot1q priority setting
 
 Double-tagged frames can be sent via comma-separated vlan-ids with the "-vid" knob.
 
@@ -215,7 +186,7 @@ reading from file ddos.pcap, link-type EN10MB (Ethernet)
 ```
 
 ### LACP
-Scapy does not natively support SNMP. The tool is reading a LACP-packet taken from a EX4300 series switch (provided via pcap "only_lacp.pcap") and overwrites src_mac and dst_mac of the to be generated LACP-frames.
+Scapy does not natively support SNMP. The tool is reading a LACP-packet taken from a EX4300 series switch (provided via pcap `only_lacp.pcap`) and overwrites `src_mac` and `dst_mac` of the to be generated LACP-frames.
 
 ```
 lab@ubuntu1:~/cg-ubuntu1/ddos$ ./ddos-gen.py --pattern_lacp -dmac 22:22:22:00:00:00
@@ -241,9 +212,10 @@ reading from file ddos.pcap, link-type EN10MB (Ethernet)
 ```
 
 
+<a id="src-mac"></a>
 ### stressing a switch/router with many new src-macs
 Not all networking-devices support mac-learn in hw. Even if done in hw, learning new macs puts a massive stress on the dataplane.
-Per default the tool is generating a random src-mac with each frame generated. 
+Per default the tool is generating a random src-mac for each subscriber. 
 A fixed src-mac can be configured as well.
 
 e.g. to generate 10 snmp-packets in vlan-id 10 with each a random smac:

@@ -186,7 +186,7 @@ reading from file ddos.pcap, link-type EN10MB (Ethernet)
 ```
 
 ### LACP
-Scapy does not natively support SNMP. The tool is reading a LACP-packet taken from a EX4300 series switch (provided via pcap `only_lacp.pcap`) and overwrites `src_mac` and `dst_mac` of the to be generated LACP-frames.
+Scapy does not natively support LACP. The tool is reading a LACP-packet taken from a EX4300 series switch (provided via pcap `only_lacp.pcap`) and overwrites `src_mac` and `dst_mac` of the to be generated LACP-frames.
 
 ```
 lab@ubuntu1:~/cg-ubuntu1/ddos$ ./ddos-gen.py --pattern_lacp -dmac 22:22:22:00:00:00
